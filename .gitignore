@@ -1,0 +1,26 @@
+.env
+.env.*
+!.env.example
+# Google/YouTube OAuth credentials, including legacy filenames anywhere in tree.
+client_secret*.json
+client_secrets*.json
+token.json
+tokens.json
+youtube-token*.json
+youtube_token*.json
+credentials.json
+service-account*.json
+service_account*.json
+*.pem
+*.key
+.venv/
+__pycache__/
+secrets/
+state/
+output/
+node_modules/
+.DS_Store
+deploy/generated/
+# Episode-generated QA scratch files accidentally written at workspace root.
+/qa/
+/write_qa_and_delivery.py

@@ -1,0 +1,22 @@
+[
+  "What happens after you type a URL? DNS to response",
+  "Why caches fail together: cache stampedes and request coalescing",
+  "How a resumable file upload survives a connection drop",
+  "How a message queue retries work without double-charging",
+  "Why a database index makes reads faster but writes slower",
+  "How a CDN delivers one video to viewers far apart",
+  "How rate limiting protects an API: token bucket explained",
+  "How Kubernetes replaces a failed Pod",
+  "When Kubernetes adds Pods versus adding nodes",
+  "How a load balancer notices a dead server",
+  "How consistent hashing handles a new cache server",
+  "Why database replicas sometimes return old data",
+  "How a transactional outbox avoids losing events",
+  "What a circuit breaker does when a dependency fails",
+  "How WebSockets keep a chat connection open",
+  "How video transcoding produces adaptive bitrate renditions",
+  "How a URL shortener chooses and stores short IDs",
+  "How optimistic locking prevents lost updates",
+  "How object storage differs from a filesystem",
+  "How cursor pagination avoids shifting page results"
+]

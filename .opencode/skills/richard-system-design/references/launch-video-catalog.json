@@ -1,0 +1,112 @@
+{
+  "extracted_on": "2026-09-21",
+  "skill_root": "/Users/mukundmadhav/pitch/.pi/skills/launch-video",
+  "effects_root": "/Users/mukundmadhav/pitch/effects",
+  "catalog_size_at_inspection": {"effects": 443, "families": 32},
+  "inspection_method": "direct local source reads; pitch executable unavailable on PATH",
+  "runtime_status": "reference extraction only; no Richard ports or export verification yet",
+  "guidance_sources": [
+    "SKILL.md",
+    "references/authoring.md",
+    "references/effects.md",
+    "references/continuity.md",
+    "references/pacing.md",
+    "references/finish.md",
+    "references/treatments/product.md",
+    "references/treatments/feature.md",
+    "references/treatments/kinetic.md",
+    "references/treatments/3d.md",
+    "references/audio/narration.md",
+    "references/audio/mix.md"
+  ],
+  "inspected": [
+    {
+      "recipe": "pitch.focus-target",
+      "effect_id": "launch-primitives/focus-target-camera",
+      "implementation": "_lib/launch-primitives.js",
+      "preset": "focus-camera",
+      "wrapper_inspected": true,
+      "metadata_inspected": true,
+      "strip_inspected": true,
+      "use": "Camera reframes from context to the next component; hold before causal action",
+      "adaptation": "Viewport-local coordinates; fixed Richard and captions; first-leg blur in source"
+    },
+    {
+      "recipe": "pitch.request-path",
+      "effect_id": "launch-primitives/reasoning-path-camera",
+      "implementation": "_lib/launch-primitives.js",
+      "preset": "reasoning-path",
+      "metadata_inspected": true,
+      "strip_inspected": true,
+      "use": "Request journey with sequential close-ups and route drawing",
+      "adaptation": "Measure real path length; add explicit token transit; separate camera moves and action"
+    },
+    {
+      "recipe": "pitch.detail-expansion",
+      "effect_id": "launch-primitives/result-card-focus-expansion",
+      "implementation": "_lib/launch-primitives.js",
+      "preset": "card-focus",
+      "metadata_inspected": true,
+      "strip_inspected": true,
+      "use": "Expand a selected record, payload or response into readable detail",
+      "adaptation": "Fixed-layout transform shell; reveal copy only after geometry settles"
+    },
+    {
+      "recipe": "pitch.precision-zoom",
+      "effect_id": "launch/perceptual-scale-zoom",
+      "implementation": "launch/perceptual-scale-zoom/index.html",
+      "metadata_inspected": false,
+      "strip_inspected": true,
+      "use": "Focus on a relevant request field or system control, then return",
+      "adaptation": "Recompute pan for the demonstration stage; remove tiny dashboard chrome"
+    },
+    {
+      "recipe": "pitch.pending-to-confirmed",
+      "effect_id": "ui-elements/loading-spinner-success-animation",
+      "implementation": "ui-elements/loading-spinner-success-animation/index.html",
+      "metadata_inspected": false,
+      "strip_inspected": false,
+      "use": "Finite pending state followed by narrated receipt/commit/readiness",
+      "adaptation": "Port GSAP/DrawSVG to Anime.js/SVG; remove particles and extra buttons"
+    },
+    {
+      "recipe": "pitch.metric-trace",
+      "effect_id": "charts/animated-line-chart-blue",
+      "implementation": "charts/animated-line-chart-blue/index.html",
+      "metadata_inspected": false,
+      "strip_inspected": false,
+      "use": "Single sourced or clearly illustrative metric with units",
+      "adaptation": "Precompute geometry; replace subscription demo values; preserve truthful data interpolation"
+    },
+    {
+      "recipe": "pitch.code-risk-resolution",
+      "effect_id": "launch-primitives/code-scan-constellation",
+      "implementation": "_lib/launch-primitives.js",
+      "preset": "code-constellation",
+      "metadata_inspected": true,
+      "strip_inspected": false,
+      "use": "Constrained one-snippet highlight, actual fix and verified outcome",
+      "adaptation": "Reject seven-panel layout and green border as proof of corrected code"
+    }
+  ],
+  "discovery_candidates": [
+    {"effect_id": "launch/kinetic-text-stagger", "use": "Short hook or staged definition"},
+    {"effect_id": "launch/scene-slide-wipe", "use": "Directed chapter handoff"},
+    {"effect_id": "launch/transform-choreography", "use": "Meaningful object handoff"},
+    {"effect_id": "launch-primitives/semantic-word-camera", "use": "Emphasize one spoken term"},
+    {"effect_id": "launch-primitives/notification-type-payoff", "use": "Message result/payoff"},
+    {"effect_id": "before-and-after/before-after-swipe", "use": "One focal before/after comparison"},
+    {"effect_id": "ui-elements/animated-progress-bar", "use": "Confirmed chunk-receipt progress"},
+    {"effect_id": "ui-elements/animated-arrow", "use": "Explain direction of data movement"},
+    {"effect_id": "counters/counter-progress-ring", "use": "Finite illustrative capacity/count"},
+    {"effect_id": "charts/horizontal-bar-chart-metrics", "use": "One clearly labeled tradeoff"},
+    {"effect_id": "icons/check-icon", "use": "Confirmed outcome"},
+    {"effect_id": "icons/close-icon", "use": "Rejected/failed outcome"},
+    {"effect_id": "icons/cursor", "use": "Scripted selection before action"},
+    {"effect_id": "effects/card-flip", "use": "Reveal a record's other representation"},
+    {"effect_id": "ui-elements/splitting-cube-perfect-loop", "use": "Finite file-chunk split after removing loop"},
+    {"effect_id": "the-click/on-off-toggle", "use": "Configuration change and demonstrated result"}
+  ],
+  "candidate_status": "IDs verified against skill inventory; candidate implementations not inspected as part of the curated set",
+  "license_status": "Local study redistribution license not established; verify before copying code or redistributing source"
+}

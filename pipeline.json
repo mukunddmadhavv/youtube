@@ -1,0 +1,31 @@
+{
+  "generation_enabled": false,
+  "publishing_enabled": false,
+  "timezone": "Asia/Kolkata",
+  "publish_times": [
+    "09:00",
+    "18:00"
+  ],
+  "slot_grace_minutes": 30,
+  "buffer_target": 10,
+  "max_generations_per_run": 2,
+  "generation_timeout_seconds": 21600,
+  "opencode_binary": "/home/mukund/.opencode/bin/opencode",
+  "model": "google/gemini-3.8-flash",
+  "channel_id": "UCFV3h0SLRPmkmK73Wbs0Evw",
+  "language": "en",
+  "category_id": "22",
+  "playlist_id": "PLLhVdhaJxBTc",
+  "supabase_archive": {
+    "enabled": true,
+    "pipeline_id": "10d70d0c-3e12-45a7-b7a7-728cd3c242ba"
+  },
+  "made_for_kids": false,
+  "contains_synthetic_media": false,
+  "character_assets": [
+    "assets/characters/richard/char_intro.png",
+    "assets/characters/richard/char_point_left.png",
+    "assets/characters/richard/char_point_right.png"
+  ],
+  "variant": "high"
+}

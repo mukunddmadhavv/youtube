@@ -1,0 +1,7 @@
+# For a locally managed named tunnel. Set its tunnel UUID and credentials-file
+# in a separate private config. For token-managed tunnels configure this public
+# hostname in Cloudflare's dashboard; the token runner uses remote ingress.
+ingress:
+  - hostname: u.trypitch.co
+    service: http://127.0.0.1:2021
+  - service: http_status:404
