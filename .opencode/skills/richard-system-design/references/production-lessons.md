@@ -175,3 +175,12 @@ actionable report. Do not treat naming missing checks as finishing them, claim
 all skill requirements passed, or admit/upload the draft as a finished episode.
 Archive/publication state must retain the real review status through the
 existing pipeline; do not fabricate passed evidence to enable scheduling.
+
+## Netflix-derived production checks
+
+Before building or repairing a video, read the workspace Richard skill
+`references/netflix-production-lessons.md`. Separate static SVG layout
+from motion wrappers, avoid repeated collection resets, preserve legible
+text and real causal movement, validate generated markup, and synchronize
+factual changes across narration/captions/visuals. Verify numerical examples
+and review evidence rather than inheriting a previous report's PASS labels.

@@ -188,3 +188,12 @@ excerpts and every transition as well; still images cannot prove motion
 quality or narration sync. Re-extract and inspect the corrected final
 export before declaring QA passed. Never equate extraction success with
 visual approval. Preserve honest draft status if review is unavailable.
+
+## Netflix-derived production checks
+
+Before building or repairing a video, read the workspace Richard skill
+`references/netflix-production-lessons.md`. Separate static SVG layout
+from motion wrappers, avoid repeated collection resets, preserve legible
+text and real causal movement, validate generated markup, and synchronize
+factual changes across narration/captions/visuals. Verify numerical examples
+and review evidence rather than inheriting a previous report's PASS labels.

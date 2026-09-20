@@ -89,3 +89,12 @@ draft with that limitation and do not fabricate a passed publishing manifest.
 
 The extractor is an evidence tool, not an automatic visual-quality classifier.
 The existing pipeline does not independently infer visual correctness from it.
+
+## Netflix-derived production checks
+
+Before building or repairing a video, read the workspace Richard skill
+`references/netflix-production-lessons.md`. Separate static SVG layout
+from motion wrappers, avoid repeated collection resets, preserve legible
+text and real causal movement, validate generated markup, and synchronize
+factual changes across narration/captions/visuals. Verify numerical examples
+and review evidence rather than inheriting a previous report's PASS labels.
