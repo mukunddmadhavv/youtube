@@ -79,6 +79,19 @@ class DashboardTest(unittest.TestCase):
         with patch.object(p,'generation_preflight'),patch.object(d.subprocess,'Popen',side_effect=started):
             self.assertTrue(d.produce(conn,job))
         self.assertEqual(conn.execute('SELECT status FROM episodes').fetchone()[0],'draft');conn.close()
+    def test_publish_now_action_and_operation(self):
+        self.login()
+        with d.closing(d.database()) as conn:
+            with conn:
+                conn.execute("INSERT INTO episodes(id,status,title,created_at,updated_at) VALUES('ep_now','draft','Publish Now Ep',?,?)", (p.utcnow(), p.utcnow()))
+        r = self.post('/api/videos/ep_now/publish-now', {})
+        self.assertEqual(r.status_code, 202)
+        with d.closing(d.database()) as conn:
+            job = conn.execute("SELECT * FROM dashboard_jobs WHERE episode_id='ep_now'").fetchone()
+            self.assertEqual(job['kind'], 'publish-now')
+        r_op = self.post('/api/operations/publish-now', {})
+        self.assertEqual(r_op.status_code, 202)
+
     def test_reject_video(self):
         self.login()
         with d.closing(d.database()) as conn:

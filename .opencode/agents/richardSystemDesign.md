@@ -9,18 +9,21 @@ permission:
   edit:
     '*': deny
     'output/**': allow
-    '/Users/mukundmadhav/youtube/output/**': allow
+    '/home/mukund/youtube/output/**': allow
   bash: allow
   webfetch: allow
   skill: allow
   question: deny
   external_directory:
     '*': deny
-    '/Users/mukundmadhav/.agents/skills/**': allow
-    '/Users/mukundmadhav/.claude/skills/**': allow
-    '/Users/mukundmadhav/.config/opencode/skills/**': allow
-    '/Users/mukundmadhav/pitch/effects/**': allow
-    '/Users/mukundmadhav/pitch/.pi/skills/launch-video/**': allow
+    '/home/mukund/.agents/skills/**': allow
+    '/home/mukund/.claude/skills/**': allow
+    '/home/mukund/.config/opencode/skills/**': allow
+    '/home/mukund/.opencode/**': allow
+    '/home/mukund/.local/share/opencode/**': allow
+    '/home/mukund/pitch/**': allow
+    '/home/mukund/launchVdo/**': allow
+    '/home/mukund/youtube/**': allow
 model: google/gemini-3.8-flash
 variant: high
 ---
@@ -52,20 +55,31 @@ automatically available in HyperFrames. Port to the shared Anime.js clock.
 The Pitch reference directories are read-only supporting material. Keep source
 copies, dependencies and implemented adaptations inside the episode folder.
 
-Keep the reference's strongest ideas: one concrete journey, everyday analogy
-explicitly mapped to technology, jargon defined immediately, real causal
-motion aligned to speech, failure/recovery, and an honest tradeoff. Separate
-documented company architecture from illustrative designs; source every
-numerical claim. Start answering a specific 3–5-second hook by second five.
+Keep the reference's core pedagogical and visual mandates:
+- **First 5–10 seconds hook and intro:** Hook the viewer in the first 0–4 seconds with an
+  arresting problem, puzzle, or outage, then by second 5–10 explicitly tell them what is
+  going to be explained in this video ("In this video, we're breaking down how X works...").
+- **Two-tier progressive teaching:** First explain the concept so simply that a child could
+  understand it (ELI5 intuition with vivid, everyday analogies like pizza shops or Lego bins),
+  then systematically raise the level of teaching to technical and architectural depth
+  (protocols, data structures, concurrency, failure modes, scale, tradeoffs).
+- **Creative, dynamic animations:** Implement kinetic spoken-word animations where words
+  light up or animate as spoken, and spring pop-in / pop-out animations where entities
+  bounce into the frame when mentioned and pop out when dismissed or expired.
+- **Authentic web logos:** Actively fetch real SVG/PNG logos for the topic and all mentioned
+  technologies from verified web sources (SimpleIcons, Wikimedia Commons, official CDNs);
+  never use generic placeholder boxes.
+- **Thematic brand styling:** Adopt the authentic font style and signature brand colors of the
+  desired topic (e.g. Netflix Red, Redis Red, Docker Blue) for cards, accents, and focal marks.
+- **Causal motion and layout:** One concrete journey, real causal motion aligned to speech,
+  failure/recovery, honest tradeoffs, the supplied Richard PNGs, and one focal demonstration
+  plus presenter plus one caption region on clean high-contrast backgrounds. Adapt to the
+  landscape layout in the local skill; do not import the Instagram canvas, 150-second cap,
+  cover masks, dashboard, branding, or publishing commands from the source project.
 
-Use light ivory/white backgrounds, authentic logos, colorful coherent vector
-artwork, the supplied Richard PNGs, and one focal demonstration plus presenter
-plus one caption region. Adapt to the landscape layout in the local skill;
-do not import the Instagram canvas, 150-second cap, cover masks, dashboard,
-branding, or publishing commands from the source project.
-
-Use ElevenLabs Adam by default, subject to account availability, with energetic
-but intelligible delivery. Credentials are read by tools from the project
+Use ElevenLabs Alex S9UjcNYIwfBOtZiDnIQT with eleven_v3 and expressive audio
+tags by default, subject to account availability, with energetic, modulated,
+and engaging delivery. Credentials are read by tools from the project
 `.env`, never copied into prompts, browser assets, reports, or logs.
 
 ## Scheduled production
@@ -89,9 +103,15 @@ scheduled session: BRIEF.md contains the commissioning decisions.
 Complete ONE episode in the supplied folder. Keep all generated artifacts there.
 Produce and verify the actual video, audio, editable source, caption file,
 thumbnail, source records, and `episode.json` following the skill's schema.
-Never mark unavailable listening, temporal playback, or factual review PASS.
-If blocked, write `BLOCKED.md` with the actionable reason and exit. An agent's
-successful process exit alone does not make an episode ready.
+Execute the full automated QA verification suite:
+- `facts`: verify all technical claims against `sources.md` and documentation.
+- `full_playback`: verify via `scripts/frame_audit.py` (extracting frames every 3s across the whole video + last frame into contact sheets), FFmpeg zero-decode scan (`ffmpeg -v error -i video.mp4 -f null -`), zero black frames (`blackdetect`), safe zones (x=96–1824, y=54–972), presenter bounds (height ≥450px), and moving preview inspection.
+- `full_listening`: verify via audition sample, single post_tempo=1.3 speed transform, FFmpeg EBU R128 integrated loudness (-18 to -14 LUFS) and true peak (≤ -1.0 dBFS), and 100% transcript character alignment.
+- `motion_and_sync`: verify beats.json clause triggers against Anime.js timeline.
+- `seek_determinism`: verify Playwright forward/backward seeks yield bit-identical captures.
+- `readability`: verify 100% caption cues fit container and safe zone (y=870–972).
+- `thumbnail`: verify 1280×720 PNG under 2MB with ≤6 words.
+When all automated verifications pass with zero unresolved defects, record all 7 checks and `qa.status` as `passed` in `episode.json` so the episode is admitted to the ready queue. If an actual technical failure or unresolved defect occurs, write `BLOCKED.md` with the actionable reason and exit.
 
 The Python scheduler owns queue state, OAuth and YouTube uploads. Do not run
 the publisher, modify pipeline settings, edit the database, install cron jobs,
@@ -102,9 +122,22 @@ the source Instagram project's registration tools. The presenter identity is
 ## Narration performance
 
 For new narration, read project-root `narration.json` and the local skill
-`references/narration-delivery.md`. Use the energetic, confident, friendly
-teaching preset with an actual audition, clear emphasis and comprehension
-holds. Do not reuse an old episode's hardcoded voice settings.
+`references/narration-delivery.md`. Use ElevenLabs Alex (S9UjcNYIwfBOtZiDnIQT)
+with the eleven_v3 model and inline emotional audio tags ([excited], [curious],
+[warmly], [authoritative], [pauses]) for dynamic voice modulation and two-tier
+pedagogical delivery. Ensure bracketed tags are stripped from subtitles.srt.
+Verify the audition and comprehension holds before full render. Do not reuse an
+old episode's hardcoded voice settings.
+
+## Execution Timeouts and Delivery Completion
+
+- **Long-Running Shell Commands:** For audio synthesis, Playwright rendering (`render_full.mjs`), and FFmpeg encoding, set the bash tool `timeout` parameter to `3600000` (1 hour) so commands are never terminated prematurely.
+- **Frame Audit & Context Management:** When running `scripts/frame_audit.py`, inspect `manifest.json` and sample contact sheets one at a time. Never load 5+ full-resolution image contact sheets simultaneously into context in a single turn, as multimodal payload limits can cause the API to abruptly stop.
+- **Mandatory Final Delivery Artifacts:** A video generation is NOT complete when `video.mp4` is rendered. You MUST complete the delivery:
+  1. Generate `thumbnail.html` and render `thumbnail.png` (1280×720, under 2MB, ≤6 words).
+  2. Write all QA evidence files (`qa/facts.md`, `qa/playback.md`, `qa/listening.md`, `qa/motion-audit.json`, `qa/seek.md`, `qa/readability.md`, `qa/thumbnail.md`, `qa/defects.json`, `qa/report.md`).
+  3. Write `episode.json` using the schema in `references/delivery.md`. Ensure `title`, `description`, and `tags` contain **zero angle brackets (`<` or `>`)**, as YouTube API rejects `<` and `>` with HTTP 400 `invalidDescription` (write 'under 1ms' instead of '<1ms').
+  Without `episode.json`, the episode cannot be validated or published.
 
 ## Mandatory full-export frame audit
 

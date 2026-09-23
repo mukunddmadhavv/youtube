@@ -13,7 +13,7 @@ and `references/delivery.md` first. Read `references/ffmpeg-workflow.md` before
 audio processing, frame capture, encoding or export QA. Use `references/launch-video-catalog.json`
 to choose Pitch-derived techniques and locate inspected effect sources.
 This skill adapts the reference at
-`/Users/mukundmadhav/insta/.opencode/agents/richardSystemDesign.md` and its
+`/home/mukund/insta/.opencode/agents/richardSystemDesign.md` and its
 system-design skill, inspected September 21, 2026. The useful teaching,
 motion, provenance, voice and honest-QA principles have been extracted locally.
 There is no runtime dependency on the Instagram workspace.
@@ -38,9 +38,10 @@ specific technical questions. The local launch-video recipes govern motion.
 | Subject | One focused technology/system-design question per episode |
 | Language/audience | Configured language; beginner-to-intermediate developers |
 | Presenter | Supplied Richard PNGs; preserve original identity and proportions |
-| Palette | Ivory #F7F5EB / white; charcoal #202628; teal #23856D; amber #A66B12; red #C94343 |
+| Palette | Topic-aligned brand colors (e.g. Netflix Red #E50914, Docker Blue #2496ED, Redis Red #D82C20) on high-contrast ivory #F7F5EB / white; charcoal #202628 text; semantic accents |
+| Typography | Topic-inspired font style (e.g. bold condensed, modern tech sans, monospace) matching the subject |
 | Runtime | HyperFrames with a local pinned Anime.js master |
-| Narration | ElevenLabs Adam pNInz6obpgDQGcFmaJgB, unless configuration overrides |
+| Narration | ElevenLabs Alex S9UjcNYIwfBOtZiDnIQT (eleven_v3 with expressive audio tags), unless configuration overrides |
 | Thumbnail | Dedicated 1280×720 PNG/JPEG, less than 2MB, ≤6 big words |
 
 ## Production sequence
@@ -54,15 +55,24 @@ specific technical questions. The local launch-video recipes govern motion.
    repositories. Save URLs, access dates, versions/dates and claim mappings in
    sources.md. Distinguish documented behavior, dated architecture and a
    proposed teaching design. Label illustrative metrics; never invent scale.
-3. Write script.md and narration.txt. Draft three honest hooks; choose the one
-   the video actually answers. Trace a familiar action through a system;
-   introduce a failure, recovery, cost and practical takeaway. A 3–8-minute
-   video generally needs roughly 550–1500 words, but the measured audio decides
-   timing. Choose length based on the lesson; no padding or rushed explanations.
+3. Write script.md and narration.txt. Structure the first 5–10 seconds with an
+   engaging hook PLUS an explicit intro stating exactly what is going to be
+   explained ("In this video, we're breaking down how X works..."). Teach in two
+   progressive tiers: first explain the core concept simply as if explaining to a
+   child (ELI5) using vivid, relatable everyday analogies (pizza shop, toy bins,
+   lunch line, postal clerk) with zero jargon; then smoothly raise the level of
+   teaching to technical and architectural depth (components, protocols, data
+   structures, concurrency, failure modes, scale, and tradeoffs). Trace a familiar
+   action through a system; introduce a failure, recovery, cost and practical
+   takeaway. A 3–8-minute video generally needs roughly 550–1500 words, but the
+   measured audio decides timing. Choose length based on the lesson; no padding.
 4. Write STORYBOARD.md mapping every meaningful clause to subject, action,
-   outcome, assets, source claims, narration trigger and result hold. Break
-   chapters into 3–7-second single-action beats, allowing longer reading holds.
-   Include short valid syntax when it helps explain the mechanism.
+   outcome, assets, source claims, narration trigger and result hold. Plan
+   creative, energetic animations throughout: kinetic word animations (words
+   animating or highlighting as spoken), objects popping in with elastic bounce
+   when first mentioned, and popping out/shrinking away when replaced or dismissed.
+   Break chapters into 3–7-second single-action beats, allowing longer reading
+   holds. Include short valid syntax when it helps explain the mechanism.
    Before locking motion choices, consult the launch-video catalog. Record each
    chosen recipe's source, target ownership, useful mechanism and chapter handoff.
    Treat this as a provisional plan; finalize all action/reading/transition
@@ -71,11 +81,15 @@ specific technical questions. The local launch-video recipes govern motion.
    Keep inspiration separate from the implemented mechanism. Each meaningful
    clause needs its named subject/action/result or a justified continued hold;
    a paragraph-level scene description is not a clause coverage audit.
-5. Source all named logos and supporting objects, not just the hook mark.
-   Use the supplied assets and official/appropriately licensed sources. Consult
-   the local launch-video catalog before hand-building named visual treatments.
-   Freeze assets locally and record license/provenance in
-   assets/manifest.json. Inspect the original Richard artwork.
+5. Source authentic web logos and brand identity for the topic. Actively fetch
+   real SVG/PNG logos from verified web sources (SimpleIcons, Wikimedia Commons,
+   official CDNs, vendor docs) for the featured technology, framework, database,
+   or company and all supporting tools mentioned. Never use generic placeholder
+   boxes when real brand logos exist. Identify and adopt the topic's signature
+   brand colors (e.g. Netflix Red, Redis Red, Docker Blue) and match its
+   typography/font style (e.g. bold condensed, modern tech sans, monospace).
+   Freeze assets locally and record license/provenance in assets/manifest.json.
+   Inspect the original Richard artwork.
 6. Follow this workspace's production sequence and extracted motion references.
    Build seek-safe HTML with one paused Anime.js master and declared 1920×1080
    canvas/timing. Use installed HyperFrames CLI tooling where applicable, and
@@ -86,9 +100,11 @@ specific technical questions. The local launch-video recipes govern motion.
    in the generation script rather than an older episode's hardcoded values.
    Never print the key or read it into conversation. Use an output-folder
    script via `bun --env-file=.env output/<id>/...` from the project root.
-   Default model eleven_multilingual_v2, native speed 1.0, initial stability
-   .30, similarity_boost .75, style .45, speaker boost enabled. Verify current
-   documented support. Generate a short audition first; assess intelligibility.
+   Default model eleven_v3 with Alex S9UjcNYIwfBOtZiDnIQT, native speed 1.0,
+   initial stability .35, similarity_boost .80, style .45, speaker boost enabled.
+   Incorporate Eleven v3 audio tags ([excited], [curious], [warmly], [authoritative], [pauses])
+   for dynamic voice modulation and two-tier pedagogical engagement.
+   Generate a short audition first; assess intelligibility.
    If voice lookup returns `missing_permissions` for `voices_read`, a supplied
    voice ID may still work for synthesis. Test that specific operation with the
    short cached audition; do not infer total credential failure or skip audition.
@@ -101,7 +117,9 @@ specific technical questions. The local launch-video recipes govern motion.
    output or a forced aligner against the final audio. For native TTS character
    timestamps, apply the same single tempo transform to the timestamp map and
    verify synchronization against the processed master. Then
-   save subtitles.srt and beats.json, then derive visual cues from those real
+   Ensure bracketed audio tags ([...]) are stripped from subtitles.srt and
+   visual captions (re.sub(r'\[.*?\]', '', text)). Then
+   save subtitles.srt and beats.json, and derive visual cues from those real
    timestamps. Never use estimated word times as verified alignment. Audio
    duration outside the range requires script revision. Render the final
    processed audio once at playback rate 1.0.
@@ -112,26 +130,40 @@ specific technical questions. The local launch-video recipes govern motion.
    not fixed offsets or percentages of scene duration. Keep caption groups
    inside semantic phrase and scene boundaries instead of grouping the entire
    script into blind five-word chunks.
-9. Author a deterministic light landscape composition. Produce causal movement
-   throughout, not a slideshow of captions and poses. Follow the teaching and
-   launch-video motion references; port selected mechanisms onto the Anime.js
-   master instead of assuming Pitch's fx/ShotKit/Motion helpers are installed.
+9. Author a deterministic light landscape composition with creative, engaging animation.
+   Produce causal movement throughout, not a slideshow of captions and poses.
+   Implement kinetic spoken-word animations (words pulsing, highlighting, or scaling
+   in sync with speech timestamps) and lively pop-in/pop-out animations (components
+   spring-scaling in on mention and smoothly exiting when dismissed). Apply the topic's
+   brand colors and font styling to cards, accents, and focal titles.
+   Follow the teaching and launch-video motion references; port selected mechanisms onto
+   the Anime.js master instead of assuming Pitch's fx/ShotKit/Motion helpers are installed.
    Before full-length capture, encode and inspect a representative short excerpt.
    Prove the chosen mechanism, safe zones, smallest-preview readability, correct
    transfer endpoints and one timeline owner per animated property.
 10. Run applicable HyperFrames checks and render the timestamp-driven visual
     sequence. Use FFmpeg for the final H.264/AAC MP4 and technical QA as described
-    in `references/ffmpeg-workflow.md`. Inspect
-    the full exported video and listen to the full audio. Check every chapter,
-    action start/mid/end, densest frame, transition, caption fit and final tail;
-    compare direct/sequential/backward seeks. Preview at 640×360 and 320×180.
-    Record evidence in qa/report.md and the delivery manifest. An unavailable
-    review is NOT VERIFIED, and the job must remain blocked rather than ready.
+    in `references/ffmpeg-workflow.md`. Execute the full automated QA verification
+    suite: run `scripts/frame_audit.py` to sample frames every 3s across the entire video
+    plus last frame, run FFmpeg zero-decode error scan, black frame detection, EBU R128
+    integrated loudness and true peak analysis, Playwright caption fit and deterministic
+    seek check, and preview inspection at 640×360 and 320×180. When all automated
+    checks pass with zero defects, record all 7 checks and `qa.status` as `passed` in
+    `episode.json`. Only write `BLOCKED.md` if an actual technical failure or unresolved
+    defect prevents verification.
 11. Create an accurate thumbnail with Richard, one dominant subject and up to
     six words, legible at 320px. Save thumbnail.png and editable source. Write
     title, description with chapter timestamps, sources/credits and tags.
+    CRITICAL: YouTube API strictly forbids angle brackets (`<` and `>`) in title,
+    description, and tags, returning HTTP 400 `invalidDescription`. Never write
+    `<1ms`, `>100k`, etc. Always write natural English such as 'under 1ms',
+    'less than 1ms', 'over 100k', or 'more than 100k'.
 12. Write episode.json LAST, only after required QA passes, using the delivery
-    schema. The scheduler independently probes the export and checks artifacts.
+    schema. Verify title, description, and tags contain zero angle brackets.
+    The scheduler independently probes the export and checks artifacts.
+    The automated publisher uploads the video directly with public visibility without
+    attempting custom thumbnail API uploads, ensuring publication is never blocked
+    by channel feature eligibility.
 
 ## Landscape composition
 
@@ -148,6 +180,17 @@ specific technical questions. The local launch-video recipes govern motion.
   the focal demonstration, with adequate reading time.
 - One focal action, Richard, one caption block. No persistent headers,
   progress pills, footers, decorative panels or competing diagrams.
+- First 5–10 seconds staging: bold animated hook mark, title, and topic introduction
+  in the focal area, establishing what will be explained before transitioning to the
+  intuitive child-level analogy.
+- Thematic brand styling: adopt the authentic font style (e.g., matching brand
+  typography via Google Fonts) and signature brand color palette of the topic
+  (e.g., Netflix Red, Redis Red, Docker Blue) for cards, accents, and focal marks.
+- Creative kinetic typography: animate spoken words in real time (scale pops,
+  glow highlights, active word emphasis) synced with narration timestamps.
+- Pop-in and pop-out dynamics: objects, nodes, message cards, and database cylinders
+  spring into the frame (scale 0 → 1.15 → 1.0) on narration triggers and pop out
+  (scale down / fade) when dismissed or replaced.
 - Avoid a repeated large scene heading as a fourth reading region. Put the
   hook headline in the caption region or use it temporarily as the focal subject.
 - Use all supplied poses when appropriate; meaningful handoffs around 4–12s,

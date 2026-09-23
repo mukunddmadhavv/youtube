@@ -9,7 +9,7 @@ runtime=root/'state/node-runtime'
 runtime.mkdir(exist_ok=True)
 subprocess.run(['npm','install','--prefix',str(runtime),'node@22'],check=True)
 env=os.environ.copy()
-env['PATH']=f"{runtime}/node_modules/.bin:{Path.home()}/.bun/bin:{Path.home()}/.opencode/bin:"+env['PATH']
+env['PATH']=f"{runtime}/node_modules/.bin:{Path.home()}/.bun/bin:{Path.home()}/.opencode/bin:{Path.home()}/.local/bin:"+env['PATH']
 subprocess.run([str(root/'.venv/bin/python'),str(root/'scripts/configure_host.py'),'--user'],env=env,check=True)
 subprocess.run([str(root/'.venv/bin/python'),str(root/'scripts/pipeline.py'),'install-cron'],env=env,check=True)
 episode=root/'output/jev-vs-llms'

@@ -1,8 +1,8 @@
 # Pitch launch-video → Richard system-design motion
 
 Extracted September 21, 2026 from
-`/Users/mukundmadhav/pitch/.pi/skills/launch-video/` and the effect implementations
-that its catalog references under `/Users/mukundmadhav/pitch/effects/`.
+`/home/mukund/launchVdo/.opencode/skills/launch-video/` and the effect implementations
+that its catalog references under `/home/mukund/launchVdo/effects/`.
 Read this before choosing motion for a new episode. Use the companion
 `launch-video-catalog.json` to select effects and locate inspected sources.
 
@@ -168,6 +168,37 @@ Source ID: `charts/animated-line-chart-blue`.
   geometry once and render every path/tooltip/counter state at absolute time.
   A callback that depends on previously visited frames is insufficient.
 
+### `pitch.spring-pop-in-out` — entities pop into the scene on mention, pop out on exit
+
+Source ID: `launch-primitives/elastic-pop-handoff`.
+
+- Source mechanism: elastic spring entrance (`scale: [0, 1.15, 1.0]`, `opacity: [0, 1]`)
+  followed by settled holding state, and quick recoil exit (`scale: [1.0, 1.1, 0]`,
+  `opacity: [1, 0]`).
+- Teach: introducing an architectural entity the exact moment it is spoken (e.g.
+  "Enter Redis", "The client sends a query", "A replica spins up") and cleanly
+  dismissing or invalidating it when its lifecycle ends (e.g. "Cache key expires",
+  "Connection drops", "Request terminates").
+- Adapt: bind trigger times to exact aligned word timestamps. Separate static position
+  from inner motion group. Keep bounce subtle so child text/icons do not clip.
+- Verify: element is completely hidden before its cue, scales smoothly with elastic
+  overshoot, remains razor-sharp when settled, and exits cleanly without lingering.
+
+### `pitch.kinetic-spoken-word` — dynamic typography and active word highlights
+
+Source ID: `kinetic-type/word-by-word-audio-sync`.
+
+- Source mechanism: per-word span tokens synchronized with narration timestamps.
+  Active word scales up (1.0 → 1.18 → 1.0) and receives the topic's signature brand
+  accent color or glowing underline; high-impact trigger words pop into view.
+- Teach: emphasizing pivotal technical terms (e.g. "STAMPEDE", "IDEMPOTENT", "LOCK",
+  "TIMEOUT", "REPLICATION LAG") in real time as Richard speaks them.
+- Adapt: integrate within the caption region or as focal stage callouts. Keep word
+  boundaries semantic. Avoid jarring full-line displacement by applying transform
+  to inline-block wrapper spans.
+- Verify: highlights trigger within ±50ms of audio phonemes, and text never breaches
+  caption container bounds (y=870–972).
+
 ### `pitch.code-risk-resolution` — optional, constrained extraction
 
 Source ID: `launch-primitives/code-scan-constellation`, preset `code-constellation`.
@@ -186,8 +217,14 @@ read; its frame strip was not inspected.
   but Richard reserves space for a presenter and captions, so **recompose**
   inside x=96–1370, y=80–790 rather than applying a global 1.5× scale blindly.
 - Keep Richard's visible silhouette ≥450px, captions within y=870–972, and the
-  light palette. A source's 16px label at 1.5× is still only 24px: rewrite and
-  enlarge essential labels to the local 48–64px target.
+  clean high-contrast palette. Incorporate the topic's authentic brand colors (e.g.
+  Netflix Red, Docker Blue, Redis Red) for card borders, focal glows, and kinetic text
+  accents, and load web fonts mirroring the topic's brand typography. A source's 16px
+  label at 1.5× is still only 24px: rewrite and enlarge essential labels to the local
+  48–64px target.
+- First 5–10 seconds staging: establish the visual identity immediately by featuring
+  the topic's authentic web logo, signature brand accent colors, kinetic title words,
+  and the explicit roadmap intro before transitioning into the child-friendly analogy.
 - For a camera with transform-origin 0 0 and no rotation, a world point `(x,y)`
   can be centered in a demonstration viewport `(W,H)` using translate
   `(W/2 - zoom*x, H/2 - zoom*y)` followed by scale(zoom). Viewport-local

@@ -132,6 +132,26 @@ class PipelineTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "full_listening"):
             p.validate_files("episode-one")
 
+    def test_angle_brackets_rejected_in_description_and_tags(self):
+        data = self.fixture()
+        data["description"] = "Fast updates in <1ms latency"
+        p.dump(p.episode_dir("episode-one") / "episode.json", data)
+        with self.assertRaisesRegex(ValueError, "angle brackets"):
+            p.validate_files("episode-one")
+
+        data["description"] = "Clean description"
+        data["tags"] = ["system design", "<caching>"]
+        p.dump(p.episode_dir("episode-one") / "episode.json", data)
+        with self.assertRaisesRegex(ValueError, "angle brackets"):
+            p.validate_files("episode-one")
+
+    def test_sanitize_youtube_text(self):
+        self.assertEqual(p.sanitize_youtube_text("Instant <1ms latency"), "Instant under 1ms latency")
+        self.assertEqual(p.sanitize_youtube_text("Traffic >100k requests"), "Traffic over 100k requests")
+        self.assertEqual(p.sanitize_youtube_text("A <test> string"), "A test string")
+        self.assertEqual(p.sanitize_youtube_text(""), "")
+        self.assertEqual(p.sanitize_youtube_text(None), "")
+
     def test_new_generation_session_command(self):
         command = p.generation_command(self.c, "episode-one")
         self.assertNotIn("--continue", command)
@@ -155,7 +175,7 @@ class PipelineTest(unittest.TestCase):
 
     def test_low_buffer_launches_bounded_distinct_sessions(self):
         p.dump(p.ROOT / "topics.json", ["A focused system-design question"])
-        self.c.update(buffer_target=3, max_generations_per_run=2)
+        self.c.update(buffer_target=3, max_generations_per_run=2, auto_admit=True)
         worker = MagicMock(pid=12345,returncode=0,poll=MagicMock(return_value=0))
         worker.wait.return_value = 0
 
@@ -173,6 +193,28 @@ class PipelineTest(unittest.TestCase):
             p.generate(self.c)
             self.assertEqual(process.call_count, 3)
             self.assertEqual(self.conn.execute("SELECT count(*) FROM episodes WHERE status='ready'").fetchone()[0], 3)
+
+    def test_auto_admit_disabled_lands_as_draft(self):
+        p.dump(p.ROOT / "topics.json", ["A focused system-design question"])
+        self.c.update(buffer_target=2, max_generations_per_run=1, auto_admit=False)
+        worker = MagicMock(pid=12345, returncode=0, poll=MagicMock(return_value=0))
+        worker.wait.return_value = 0
+
+        def fake_produce(*args, **kwargs):
+            # simulate worker creating video.mp4 and episode.json
+            row = self.conn.execute("SELECT id FROM episodes WHERE status='generating'").fetchone()
+            if row:
+                folder = p.episode_dir(row["id"])
+                (folder / "video.mp4").write_bytes(b"video")
+                (folder / "episode.json").write_text(json.dumps({"title": "Draft Ep", "topic_key": "draft-ep"}))
+            return worker
+
+        with patch.object(p, "generation_preflight"),                 patch.object(p.subprocess, "Popen", side_effect=fake_produce):
+            p.generate(self.c)
+        rows = list(self.conn.execute("SELECT status, title FROM episodes"))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "draft")
+        self.assertEqual(rows[0]["title"], "Draft Ep")
 
     def test_successful_process_without_valid_manifest_stays_failed(self):
         p.dump(p.ROOT / "topics.json", ["A focused system-design question"])
@@ -225,11 +267,42 @@ class PipelineTest(unittest.TestCase):
         api = self.api()
         api.thumbnails().set().execute.side_effect = [ConnectionError("connection lost"), {}]
         api.videos().insert.reset_mock()
+        c = {**self.c, "upload_thumbnails": True}
         with patch.object(p, "due_slot", return_value="test-slot"), patch.object(p, "youtube", return_value=api):
             with self.assertRaises(ConnectionError):
-                p.publish(self.c)
+                p.publish(c)
             self.assertEqual(self.row()["status"], "uploaded")
+            p.publish(c)
+        self.assertEqual(api.videos().insert.call_count, 1)
+        self.assertEqual(self.row()["status"], "published")
+
+    def test_publish_skips_thumbnail_upload_when_disabled(self):
+        self.ready()
+        api = self.api()
+        api.videos().insert.reset_mock()
+        with patch.object(p, "due_slot", return_value="test-slot"), patch.object(p, "youtube", return_value=api):
             p.publish(self.c)
+        self.assertEqual(api.videos().insert.call_count, 1)
+        self.assertEqual(self.row()["status"], "published")
+        api.thumbnails().set.assert_not_called()
+
+    def test_publish_now_with_episode_id_outside_slot(self):
+        self.ready()
+        api = self.api()
+        api.videos().insert.reset_mock()
+        with patch.object(p, "due_slot", return_value=None), patch.object(p, "youtube", return_value=api):
+            p.publish(self.c, episode_id="episode-one", force_now=True)
+        self.assertEqual(api.videos().insert.call_count, 1)
+        self.assertEqual(self.row()["status"], "published")
+        self.assertTrue(self.row()["slot"].startswith("manual-"))
+
+    def test_publish_now_draft_is_admitted_and_published(self):
+        self.fixture() # status is generating
+        p.update(self.conn, "episode-one", status="draft")
+        api = self.api()
+        api.videos().insert.reset_mock()
+        with patch.object(p, "probe", side_effect=self.fake_probe), patch.object(p, "youtube", return_value=api):
+            p.publish(self.c, episode_id="episode-one", force_now=True)
         self.assertEqual(api.videos().insert.call_count, 1)
         self.assertEqual(self.row()["status"], "published")
 

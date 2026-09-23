@@ -63,6 +63,10 @@ def validate_config(c):
     for key in ("generation_enabled", "publishing_enabled", "made_for_kids", "contains_synthetic_media"):
         if not isinstance(c[key], bool):
             raise ValueError(f"{key} must be boolean")
+    if "auto_admit" in c and not isinstance(c["auto_admit"], bool):
+        raise ValueError("auto_admit must be boolean")
+    if "upload_thumbnails" in c and not isinstance(c["upload_thumbnails"], bool):
+        raise ValueError("upload_thumbnails must be boolean")
     return c
 
 
@@ -148,10 +152,14 @@ def validate_files(episode_id):
         raise ValueError("YouTube titles cannot contain angle brackets")
     if not isinstance(data["description"], str) or not 1 <= len(data["description"].encode()) <= 5000:
         raise ValueError("Description must be 1–5000 UTF-8 bytes")
+    if any(char in data["description"] for char in "<>"):
+        raise ValueError("YouTube descriptions cannot contain angle brackets (< or >); use 'under', 'over', etc.")
     tags = data.get("tags", [])
     if (not isinstance(tags, list) or any(not isinstance(t, str) or not t.strip() for t in tags)
             or sum(len(t) + 3 for t in tags) > 450):
         raise ValueError("Invalid tags or tags too long")
+    if any(any(char in t for char in "<>") for t in tags):
+        raise ValueError("YouTube tags cannot contain angle brackets (< or >)")
     qa = data["qa"]
     if qa["status"] != "passed":
         raise ValueError("QA has not passed")
@@ -193,10 +201,10 @@ def validate_files(episode_id):
 
 def admit(conn, episode_id):
     row = conn.execute("SELECT * FROM episodes WHERE id=?", (episode_id,)).fetchone()
-    if not row or row["status"] not in ("generating", "failed", "draft", "ready") or row["slot"]:
+    if not row or (row["slot"] and row["status"] not in ("uploading", "blocked", "failed")) or row["status"] not in ("generating", "failed", "draft", "ready", "uploading", "blocked"):
         raise ValueError("Only existing, unassigned generating/failed/ready episodes can be validated")
     data, hashes = validate_files(episode_id)
-    update(conn, episode_id, status="ready", topic_key=data["topic_key"], title=data["title"],
+    update(conn, episode_id, status="ready", slot=None, topic_key=data["topic_key"], title=data["title"],
            hashes=json.dumps(hashes), error=None)
 
 
@@ -270,9 +278,10 @@ def generate(c):
         if conn.execute("SELECT 1 FROM episodes WHERE status='generating'").fetchone():
             raise ValueError("Unfinished generating episode: inspect its log/process; validate or fail it before retrying")
         for _ in range(c["max_generations_per_run"]):
-            count = conn.execute("SELECT count(*) FROM episodes WHERE status='ready'").fetchone()[0]
+            status_filter = "('ready')" if c.get("auto_admit", True) else "('ready', 'draft')"
+            count = conn.execute(f"SELECT count(*) FROM episodes WHERE status IN {status_filter}").fetchone()[0]
             if count >= c["buffer_target"]:
-                print(f"Buffer full: {count} ready.")
+                print(f"Buffer full: {count} available.")
                 break
             episode_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:8]
             folder = episode_dir(episode_id)
@@ -323,8 +332,37 @@ def generate(c):
                         raise
                 if code:
                     raise ValueError(f"OpenCode exited {code}; inspect session.jsonl")
-                admit(conn, episode_id)
-                print(f"Ready: {episode_id}")
+                if c.get("auto_admit", True):
+                    try:
+                        admit(conn, episode_id)
+                        print(f"Ready: {episode_id}")
+                    except Exception as val_exc:
+                        if (folder / "video.mp4").is_file():
+                            title, topic_key = None, None
+                            try:
+                                manifest = json.loads((folder / "episode.json").read_text())
+                                title = manifest.get("title")
+                                topic_key = manifest.get("topic_key")
+                            except Exception:
+                                pass
+                            update(conn, episode_id, status="draft", title=title, topic_key=topic_key, error=f"Review draft: {val_exc}")
+                            print(f"Draft: {episode_id} (review draft pending); ready for review.")
+                        else:
+                            raise
+                else:
+                    if (folder / "video.mp4").is_file():
+                        title, topic_key = None, None
+                        try:
+                            manifest = json.loads((folder / "episode.json").read_text())
+                            title = manifest.get("title")
+                            topic_key = manifest.get("topic_key")
+                        except Exception:
+                            pass
+                        update(conn, episode_id, status="draft", title=title, topic_key=topic_key, error=None)
+                        print(f"Draft: {episode_id} generated successfully; waiting for review in dashboard.")
+                    else:
+                        update(conn, episode_id, status="failed", error="No video produced")
+                        raise ValueError("No video produced")
             except Exception as exc:
                 update(conn, episode_id, status="failed", error=f"{type(exc).__name__}: production/validation failed; inspect artifacts")
                 print(f"Failed: {episode_id} ({type(exc).__name__}); inspect its artifacts.", file=sys.stderr)
@@ -400,6 +438,37 @@ def due_slot(c, now=None):
     return max(due).isoformat() if due else None
 
 
+def sanitize_youtube_text(text):
+    if not text:
+        return ""
+    # YouTube API returns 400 invalidDescription or invalidTitle if < or > are present.
+    text = re.sub(r'<(?=\d)', 'under ', str(text))
+    text = re.sub(r'>(?=\d)', 'over ', text)
+    text = text.replace('<', '').replace('>', '')
+    return text
+
+
+def format_exception(exc):
+    try:
+        from googleapiclient.errors import HttpError
+        if isinstance(exc, HttpError):
+            reason = getattr(exc, "reason", None)
+            try:
+                content = json.loads(exc.content.decode("utf-8"))
+                msg = content.get("error", {}).get("message")
+                errors = content.get("error", {}).get("errors", [])
+                err_reasons = [f"{e.get('reason')}: {e.get('message')}" for e in errors if e.get("message")]
+                detail = "; ".join(err_reasons) if err_reasons else (msg or reason)
+                return f"({exc.resp.status}): {detail}"
+            except Exception:
+                return f"({exc.resp.status}): {reason or 'HTTP error'}"
+    except ImportError:
+        pass
+    if isinstance(exc, (ValueError, FileNotFoundError)):
+        return str(exc)
+    return "Operation failed; inspect local artifacts or provider dashboard."
+
+
 def assert_video_owner(api, video_id, c):
     items = api.videos().list(part="snippet,status", id=video_id).execute().get("items", [])
     if not items or items[0]["snippet"]["channelId"] != c["channel_id"]:
@@ -416,8 +485,16 @@ def finish_publication(api, conn, row, c):
         update(conn, row["id"], status="blocked", error="YouTube rejected/failed this upload; inspect Studio")
         return
     folder = episode_dir(row["id"])
-    api.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(
-        str(local_file(folder, data["thumbnail"])))).execute()
+    if c.get("upload_thumbnails", False):
+        try:
+            api.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(
+                str(local_file(folder, data["thumbnail"])))).execute()
+        except Exception as thumb_exc:
+            from googleapiclient.errors import HttpError
+            if isinstance(thumb_exc, HttpError) and thumb_exc.resp.status == 403:
+                print("Warning: Custom thumbnail upload returned 403 (channel requires phone verification in YouTube Studio for custom thumbnails). Continuing publication with default thumbnail.")
+            else:
+                raise
     if c.get("playlist_id"):
         # Query by videoId to make retries idempotent, including an uncertain
         # playlist insert result. Never create/rename a supplied playlist.
@@ -439,41 +516,68 @@ def finish_publication(api, conn, row, c):
     print(f"Published: https://www.youtube.com/watch?v={video_id}")
 
 
-def publish(c):
+def publish(c, episode_id=None, force_now=False):
     # The existing five-minute cron poll also retries archival/status sync,
     # even while new publication is disabled or outside a publishing window.
     with lock("publisher") as acquired:
         if not acquired:
+            if force_now: raise ValueError("Publisher already running")
             return
         sync_archive(c, db())
-    if not c["publishing_enabled"]:
+    if not c["publishing_enabled"] and not force_now:
         print("Publishing disabled; complete OAuth and channel setup before enabling.")
         return
-    slot = due_slot(c)
-    if not slot:
-        print("Outside publishing window; no catch-up upload.")
-        return
+    slot = None
+    if not force_now:
+        slot = due_slot(c)
+        if not slot:
+            print("Outside publishing window; no catch-up upload.")
+            return
     with lock("publisher") as acquired:
         if not acquired:
+            if force_now: raise ValueError("Publisher already running")
             print("Publisher already running.")
             return
         conn = db()
-        row = conn.execute("SELECT * FROM episodes WHERE slot=?", (slot,)).fetchone()
-        if row and row["status"] in ("published", "blocked", "uploading"):
-            print(f"Slot already assigned: {row['id']} ({row['status']}).")
-            return
-        if not row:
-            # Uncertain insert results require reconciliation before new public uploads.
-            if conn.execute("SELECT 1 FROM episodes WHERE status IN ('uploading','uploaded','blocked')").fetchone():
-                raise ValueError("Resolve the previous upload before assigning another publishing slot")
+        if episode_id:
+            row = conn.execute("SELECT * FROM episodes WHERE id=?", (episode_id,)).fetchone()
+            if not row: raise ValueError(f"Episode {episode_id} not found")
+            if row["status"] == "published":
+                print(f"Episode {episode_id} is already published: https://www.youtube.com/watch?v={row['youtube_id']}")
+                return
+            if row["status"] == "draft":
+                admit(conn, episode_id)
+                row = conn.execute("SELECT * FROM episodes WHERE id=?", (episode_id,)).fetchone()
+            if row["status"] not in ("ready", "uploading", "uploaded", "blocked"):
+                raise ValueError(f"Episode {episode_id} cannot be published; status is {row['status']}")
+            slot = row["slot"] or f"manual-{utcnow()}"
+        elif slot:
+            row = conn.execute("SELECT * FROM episodes WHERE slot=?", (slot,)).fetchone()
+            if row and row["status"] in ("published", "blocked", "uploading"):
+                print(f"Slot already assigned: {row['id']} ({row['status']}).")
+                return
+            if not row:
+                if conn.execute("SELECT 1 FROM episodes WHERE status IN ('uploading','uploaded','blocked')").fetchone():
+                    raise ValueError("Resolve the previous upload before assigning another publishing slot")
+                row = conn.execute("SELECT * FROM episodes WHERE status='ready' ORDER BY created_at LIMIT 1").fetchone()
+        else:
             row = conn.execute("SELECT * FROM episodes WHERE status='ready' ORDER BY created_at LIMIT 1").fetchone()
+            if not row:
+                print("No ready video to publish now.")
+                return
+            slot = row["slot"] or f"manual-{utcnow()}"
+
         if not row:
             print("No ready video; slot remains open until its grace window ends.")
             return
+
+        if conn.execute("SELECT 1 FROM episodes WHERE status IN ('uploading','uploaded','blocked') AND id != ?", (row["id"],)).fetchone():
+            raise ValueError("Resolve the previous upload before assigning another publishing slot")
+
         data = unchanged(row)
         sync_archive(c, conn, row["id"])
         api = youtube(c)  # Authenticate before reserving a slot or attempting an insert.
-        if row["status"] == "uploaded":
+        if (row["status"] == "uploaded" or (row["status"] == "blocked" and row["youtube_id"])):
             finish_publication(api, conn, row, c)
             return
         update(conn, row["id"], slot=slot, status="uploading", error=None)
@@ -483,21 +587,29 @@ def publish(c):
         description = data["description"]
         if len((description + marker).encode()) <= 5000:
             description += marker
+        clean_title = sanitize_youtube_text(data["title"])[:100]
+        clean_description = sanitize_youtube_text(description)
+        clean_tags = [sanitize_youtube_text(t) for t in data.get("tags", [])]
         request = api.videos().insert(part="snippet,status", body={
-            "snippet": {"title": data["title"], "description": description,
-                        "tags": data.get("tags", []), "categoryId": c["category_id"],
+            "snippet": {"title": clean_title, "description": clean_description,
+                        "tags": clean_tags, "categoryId": c["category_id"],
                         "defaultLanguage": c["language"]},
             "status": {"privacyStatus": "private", "selfDeclaredMadeForKids": c["made_for_kids"],
                        "containsSyntheticMedia": c["contains_synthetic_media"]}},
             media_body=MediaFileUpload(str(local_file(episode_dir(row["id"]), data["video"])),
                                        mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True))
-        response = None
-        while response is None:
-            _, response = request.next_chunk(num_retries=0)
-        video_id = response["id"]
-        update(conn, row["id"], status="uploaded", youtube_id=video_id)
-        row = conn.execute("SELECT * FROM episodes WHERE id=?", (row["id"],)).fetchone()
-        finish_publication(api, conn, row, c)
+        try:
+            response = None
+            while response is None:
+                _, response = request.next_chunk(num_retries=2)
+            video_id = response["id"]
+            update(conn, row["id"], status="uploaded", youtube_id=video_id, error=None)
+            row = conn.execute("SELECT * FROM episodes WHERE id=?", (row["id"],)).fetchone()
+            finish_publication(api, conn, row, c)
+        except Exception as exc:
+            err_msg = format_exception(exc)
+            update(conn, row["id"], error=err_msg)
+            raise
 
 
 def reconcile(c, episode_id, video_id):
@@ -566,8 +678,13 @@ def install_cron():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("status", "doctor", "auth", "buffer", "publish", "sync", "cron", "install-cron"):
+    for name in ("status", "doctor", "auth", "buffer", "sync", "cron", "install-cron"):
         commands.add_parser(name)
+    pub_parser = commands.add_parser("publish")
+    pub_parser.add_argument("episode_id", nargs="?", default=None)
+    pub_parser.add_argument("--now", action="store_true", default=False)
+    pub_now_parser = commands.add_parser("publish-now")
+    pub_now_parser.add_argument("episode_id", nargs="?", default=None)
     for name in ("validate", "fail", "reject", "retry-finish"):
         sub = commands.add_parser(name)
         sub.add_argument("episode_id")
@@ -603,7 +720,9 @@ def main():
     elif args.command == "buffer":
         generate(c)
     elif args.command == "publish":
-        publish(c)
+        publish(c, episode_id=args.episode_id, force_now=args.now)
+    elif args.command == "publish-now":
+        publish(c, episode_id=args.episode_id, force_now=True)
     elif args.command == "sync":
         with lock("publisher") as acquired:
             if not acquired:
@@ -625,11 +744,11 @@ def main():
                     admit(conn, args.episode_id)
                 else:
                     row = conn.execute("SELECT * FROM episodes WHERE id=?", (args.episode_id,)).fetchone()
-                    if not row or row["status"] not in ("generating", "failed", "draft", "ready") or row["slot"]:
+                    if not row or (row["slot"] and row["status"] not in ("uploading", "blocked", "failed")) or row["status"] not in ("generating", "failed", "draft", "ready", "uploading", "blocked"):
                         raise ValueError("Only unassigned production jobs can be rejected; reconcile uploads instead")
                     default_reason = "Rejected by operator" if args.command == "reject" else "Manually failed by operator"
                     reason = getattr(args, "reason", None) or default_reason
-                    update(conn, args.episode_id, status="failed", error=reason)
+                    update(conn, args.episode_id, status="failed", slot=None, error=reason)
     elif args.command == "reconcile":
         reconcile(c, args.episode_id, args.video_id)
     elif args.command == "retry-finish":
@@ -642,6 +761,6 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as exc:
         # Provider exceptions can contain request details; do not dump headers or tokens.
-        message = str(exc) if isinstance(exc, (ValueError, FileNotFoundError)) else "Operation failed; inspect local artifacts or provider dashboard."
+        message = format_exception(exc)
         print(f"{type(exc).__name__}: {message}", file=sys.stderr)
         sys.exit(1)

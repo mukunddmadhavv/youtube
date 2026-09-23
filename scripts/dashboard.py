@@ -24,7 +24,7 @@ ROOT = p.ROOT
 STATIC = ROOT / "dashboard"
 CONFIG_KEYS = {"generation_enabled", "publishing_enabled", "timezone", "publish_times",
                "buffer_target", "max_generations_per_run", "model", "language", "made_for_kids",
-               "contains_synthetic_media"}
+               "contains_synthetic_media", "auto_admit", "upload_thumbnails"}
 MEDIA = {"video": "video.mp4", "thumbnail": "thumbnail.png", "captions": "subtitles.srt",
          "preview": "qa/preview-640.mp4"}
 DOCS = {"brief": "BRIEF.md", "script": "script.md", "sources": "sources.md", "qa": "qa/report.md",
@@ -366,11 +366,13 @@ def create_app(test_config=None):
 
     @app.post("/api/videos/<eid>/<action>")
     def action(eid,action):
-        if action not in ("validate","fail","reject","retry-finish","reconcile","revise"): abort(404)
+        if action not in ("validate","fail","reject","retry-finish","reconcile","revise","publish-now"): abort(404)
         with closing(database()) as conn:
             row=conn.execute("SELECT * FROM episodes WHERE id=?",(eid,)).fetchone()
             if not row: abort(404)
             data=request.get_json() or {}
+            if action=="publish-now":
+                if row["status"] == "published": raise ValueError(f"Episode {eid} is already published")
             if action=="revise":
                 if row['status'] not in ('draft','failed') or row['slot']: raise ValueError("Only unassigned drafts/failed episodes can be revised")
                 if not isinstance(data.get('notes'),str) or not 3<=len(data['notes'])<=4000: raise ValueError("Provide revision instructions")
@@ -381,7 +383,7 @@ def create_app(test_config=None):
                 if not re.fullmatch(r'[A-Za-z0-9_-]{11}',data.get('video_id','')): raise ValueError('Enter an 11-character YouTube video ID')
                 data={'video_id':data['video_id']}
             elif action in ('fail','reject'):
-                if row['slot']: raise ValueError("Cannot reject an episode with an assigned publishing slot")
+                if row['slot'] and row['status'] not in ('uploading', 'blocked', 'failed'): raise ValueError("Cannot reject an episode with an assigned publishing slot")
                 reason = data.get('reason', '') if isinstance(data, dict) else ''
                 if not isinstance(reason, str) or len(reason) > 500: raise ValueError("Reason must be under 500 characters")
                 data = {'reason': reason.strip()} if reason.strip() else {}
@@ -391,7 +393,7 @@ def create_app(test_config=None):
 
     @app.post("/api/operations/<kind>")
     def operation(kind):
-        if kind not in ('buffer','sync','publish'): abort(404)
+        if kind not in ('buffer','sync','publish','publish-now'): abort(404)
         with closing(database()) as conn: jid=enqueue(conn,kind)
         return jsonify(job_id=jid),202
 
@@ -428,12 +430,18 @@ def worker_status():
 
 def produce(conn,job):
     c=p.config(); payload=json.loads(job['payload']);eid=job['episode_id']
-    with p.lock('generation') as acquired:
+    with p.lock(f'generation-{eid}') as acquired:
         if not acquired: return False
-        if conn.execute("SELECT 1 FROM episodes WHERE status='generating'").fetchone(): raise ValueError('An unfinished generation needs inspection before starting another')
+        if conn.execute("SELECT 1 FROM episodes WHERE id=? AND status='generating'",(eid,)).fetchone():
+            raise ValueError(f'Episode {eid} is already generating')
         p.generation_preflight(c)
         import session_tracking
-        saved_session = session_tracking.resume_id(ROOT,eid,c['opencode_binary']) if job['kind']=='revise' else None
+        saved_session = None
+        if job['kind'] == 'revise':
+            saved_session = session_tracking.resume_id(ROOT, eid, c['opencode_binary'])
+        elif session_tracking.recover(ROOT, eid):
+            try: saved_session = session_tracking.resume_id(ROOT, eid, c['opencode_binary'])
+            except Exception: saved_session = None
         folder=p.episode_dir(eid);folder.mkdir(parents=True,exist_ok=True)
         p.dump(folder/'history.json',[dict(r) for r in conn.execute('SELECT id,title,topic_key,status FROM episodes WHERE id != ?',(eid,))])
         if job['kind']=='create':
@@ -455,6 +463,8 @@ def produce(conn,job):
         command=p.generation_command(c,eid)
         if job['kind']=='revise':
             command[-1]=f"Revise the existing episode in output/{eid}/ using the workspace Richard skill and production-lessons.md. Read its BRIEF and QA first. Owner feedback: {payload['notes']}\nPreserve reusable assets/audio; rerender changed output and verify honestly. Do not publish or edit queue state."
+        elif saved_session:
+            command[-1]=f"Continue producing the complete Richard YouTube episode in output/{eid}/. Resume where the previous turn left off, finalize index.html and animation.js, render video.mp4, run the frame audit and full QA checks, and write episode.json."
         from voice_selection import instruction
         if job['kind']=='revise': command[-1] += instruction(eid)
         if saved_session: command[-1:-1] = ['--session', saved_session]
@@ -470,7 +480,11 @@ def produce(conn,job):
         # Dashboard commissions always land in review. Validation is explicit,
         # and still requires the complete truthful QA manifest.
         if (folder/'video.mp4').is_file():
-            p.update(conn,eid,status='draft',error=None if code==0 else f'OpenCode exited {code}; review output and log')
+            has_manifest = (folder/'episode.json').is_file()
+            err = None
+            if code != 0: err = f'OpenCode exited {code}; review output and log'
+            elif not has_manifest: err = 'Video produced, but QA manifest episode.json is missing; complete QA or revise before validating'
+            p.update(conn,eid,status='draft',error=err)
         else:
             p.update(conn,eid,status='failed',error=f'No video produced; OpenCode exit {code}. Inspect BLOCKED.md/log.')
             raise ValueError('Production did not produce a video')
@@ -500,30 +514,69 @@ def run_job(conn,job):
 def worker():
     with p.lock('dashboard-worker') as acquired:
         if not acquired: raise ValueError('Dashboard worker already running')
+        import threading
+
         with closing(database()) as conn:
             with conn:
-                conn.execute("UPDATE dashboard_jobs SET status='interrupted',error='Worker restarted; inspect running process before retrying',updated_at=? WHERE status='running'",(p.utcnow(),))
-            # Separate heartbeat survives long render jobs.
-            import threading
-            def heartbeat():
-                while True:
-                    p.dump(ROOT/'state/dashboard-worker.json',{'pid':os.getpid(),'heartbeat':time.time()});time.sleep(5)
-            threading.Thread(target=heartbeat,daemon=True).start()
+                running_jobs = conn.execute("SELECT * FROM dashboard_jobs WHERE status='running'").fetchall()
+                for rj in running_jobs:
+                    eid = rj['episode_id']
+                    worker_file = ROOT / f"output/{eid}/worker.json" if eid else None
+                    is_alive = False
+                    if worker_file and worker_file.is_file():
+                        try:
+                            wdata = json.loads(worker_file.read_text())
+                            os.kill(wdata['pid'], 0)
+                            is_alive = True
+                        except (OSError, ValueError, KeyError): pass
+                    if not is_alive:
+                        conn.execute("UPDATE dashboard_jobs SET status='interrupted',error='Worker restarted; inspect running process before retrying',updated_at=? WHERE id=?", (p.utcnow(), rj['id']))
+
+        def heartbeat():
             while True:
-                job=conn.execute("SELECT * FROM dashboard_jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
-                if not job: time.sleep(3);continue
-                with conn: conn.execute("UPDATE dashboard_jobs SET status='running',updated_at=? WHERE id=?",(p.utcnow(),job['id']))
+                p.dump(ROOT/'state/dashboard-worker.json',{'pid':os.getpid(),'heartbeat':time.time()});time.sleep(5)
+        threading.Thread(target=heartbeat,daemon=True).start()
+
+        active_jobs = {}
+
+        def execute_job(job_id):
+            with closing(database()) as thread_conn:
+                job = thread_conn.execute("SELECT * FROM dashboard_jobs WHERE id=?", (job_id,)).fetchone()
+                if not job: return
                 try:
-                    done=run_job(conn,job)
-                    status='completed' if done else 'queued';error=None
+                    done = run_job(thread_conn, job)
+                    status = 'completed' if done else 'queued'; error = None
                 except Exception as exc:
-                    status='failed';error=redact(str(exc)) if isinstance(exc,ValueError) else f'{type(exc).__name__}: inspect local worker log'
-                    if job['kind'] in ('create','revise'):
-                        row=conn.execute('SELECT status FROM episodes WHERE id=?',(job['episode_id'],)).fetchone()
-                        if row and row['status']!='generating': p.update(conn,job['episode_id'],status='failed',error=error)
-                        elif row: p.update(conn,job['episode_id'],error=error)
-                with conn: conn.execute('UPDATE dashboard_jobs SET status=?,error=?,updated_at=? WHERE id=?',(status,error,p.utcnow(),job['id']))
-                time.sleep(2)
+                    status = 'failed'; error = redact(str(exc)) if isinstance(exc, ValueError) else f'{type(exc).__name__}: inspect local worker log'
+                    if job['kind'] in ('create', 'revise'):
+                        row = thread_conn.execute('SELECT status FROM episodes WHERE id=?', (job['episode_id'],)).fetchone()
+                        if row and row['status'] != 'generating': p.update(thread_conn, job['episode_id'], status='failed', error=error)
+                        elif row: p.update(thread_conn, job['episode_id'], error=error)
+                with thread_conn:
+                    thread_conn.execute('UPDATE dashboard_jobs SET status=?,error=?,updated_at=? WHERE id=?', (status, error, p.utcnow(), job_id))
+
+        max_concurrent = int(os.getenv('DASHBOARD_MAX_CONCURRENT_JOBS', '4'))
+        while True:
+            # Prune finished threads
+            for jid in list(active_jobs.keys()):
+                if not active_jobs[jid].is_alive():
+                    active_jobs.pop(jid, None)
+
+            if len(active_jobs) < max_concurrent:
+                with closing(database()) as conn:
+                    queued_jobs = conn.execute("SELECT * FROM dashboard_jobs WHERE status='queued' ORDER BY created_at").fetchall()
+                    for job in queued_jobs:
+                        if len(active_jobs) >= max_concurrent:
+                            break
+                        eid = job['episode_id']
+                        if eid and conn.execute("SELECT 1 FROM dashboard_jobs WHERE episode_id=? AND status='running' AND id!=?", (eid, job['id'])).fetchone():
+                            continue
+                        with conn:
+                            conn.execute("UPDATE dashboard_jobs SET status='running',updated_at=? WHERE id=? AND status='queued'", (p.utcnow(), job['id']))
+                        t = threading.Thread(target=execute_job, args=(job['id'],), daemon=True)
+                        t.start()
+                        active_jobs[job['id']] = t
+            time.sleep(2)
 
 
 if __name__=='__main__':

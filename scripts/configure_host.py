@@ -26,6 +26,14 @@ python=root/'.venv/bin/python'
 if not python.is_file(): raise SystemExit('Recreate .venv on this host before configuring services.')
 def quote(value):
     return '"'+str(value).replace('\\','\\\\').replace('"','\\"').replace('%','%%')+'"'
+path_parts = [
+    str(root / "state/node-runtime/node_modules/.bin"),
+    str(Path.home() / ".bun/bin"),
+    str(Path.home() / ".opencode/bin"),
+    str(Path.home() / ".local/bin"),
+] + [p for p in os.environ.get("PATH", "").split(":") if p]
+env_path = ":".join(dict.fromkeys(path_parts))
+
 for name,script,args in [('dashboard','dashboard.py','serve'),('worker','dashboard.py','worker'),('tunnel','run_tunnel.py','')]:
     content=f'''[Unit]
 Description=Richard YouTube {name}
@@ -36,7 +44,7 @@ Wants=network-online.target
 Type=simple
 {'' if options.user else 'User='+user}
 WorkingDirectory={str(root).replace('%', '%%')}
-Environment={quote('PATH='+os.environ['PATH'])}
+Environment={quote('PATH='+env_path)}
 Environment=DASHBOARD_HOST=127.0.0.1
 Environment=DASHBOARD_SECURE_COOKIE=true
 ExecStart={quote(python)} {quote(root/'scripts'/script)} {args}
