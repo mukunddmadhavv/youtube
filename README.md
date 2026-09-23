@@ -21,7 +21,7 @@ to YouTube, including landscape staging, longer explanations and thumbnails.
 
 Richard's skill now includes `references/launch-video-motion.md` and
 `references/launch-video-catalog.json`, extracted from
-`/Users/mukundmadhav/pitch/.pi/skills/launch-video/` and its referenced effects lab.
+`/home/mukund/launchVdo/.opencode/skills/launch-video/` and its referenced effects lab.
 The curated set covers focus cameras, request-path reveals, record/detail
 expansion, precision zooms, pending-to-success transitions, metric traces and
 a constrained code-fix treatment. It also carries narration-first timing,
@@ -116,7 +116,7 @@ to represent videos that have not yet been made.
 
 ## Setup and activation
 
-Run commands from `/Users/mukundmadhav/youtube`. The Python environment has been
+Run commands from `/home/mukund/youtube`. The Python environment has been
 installed here; to recreate it:
 
 ```sh

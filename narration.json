@@ -1,15 +1,16 @@
 {
-  "voice_id": "pNInz6obpgDQGcFmaJgB",
-  "model_id": "eleven_multilingual_v2",
+  "voice_id": "S9UjcNYIwfBOtZiDnIQT",
+  "voice_name": "Alex",
+  "model_id": "eleven_v3",
   "voice_settings": {
     "stability": 0.25,
-    "similarity_boost": 0.75,
-    "style": 0.6,
+    "similarity_boost": 0.8,
+    "style": 0.55,
     "use_speaker_boost": true,
     "speed": 1.0
   },
-  "post_tempo": 1.3,
-  "direction": "More expressive variation and the fastest final pace. Clear, confident, friendly technical teaching; pause for comprehension.",
+  "post_tempo": 1.28,
+  "direction": "High-energy, fast-paced delivery with punchy emphasis. Expressive, modulated technical teaching with Eleven v3 audio tags; pause for comprehension.",
   "audition_required": true,
   "preset_id": "punchy-presenter"
 }

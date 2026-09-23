@@ -41,8 +41,8 @@ def select():
     with p.lock('settings') as acquired:
         if not acquired: abort(409)
         current=json.loads((ROOT/'narration.json').read_text())
-        for key in ('voice_id','model_id','voice_settings','post_tempo','direction','audition_required'):
-            current[key]=sample[key]
+        for key in ('voice_id','voice_name','model_id','voice_settings','post_tempo','direction','audition_required'):
+            if key in sample: current[key]=sample[key]
         current['preset_id']=sample['id']
         p.dump(ROOT/'narration.json',current)
     return jsonify(ok=True,selected=sample['id'])

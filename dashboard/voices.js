@@ -1,3 +1,84 @@
-let csrf='';const $=s=>document.querySelector(s);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function load(){try{const auth=await fetch('/api/state');if(auth.status===401){$('#status').innerHTML='Please <a href="/">sign in to the dashboard</a>, then return to this page.';return}if(!auth.ok)throw Error('Could not connect to the dashboard');csrf=(await auth.json()).csrf;const r=await fetch('/api/voices');if(!r.ok)throw Error('Samples are not available yet');const data=await r.json();$('#passage').textContent=data.text;$('#voices').innerHTML=data.samples.map((s,i)=>`<article class="panel"><div class="section-head"><h2>${i+1}. ${esc(s.name)}</h2><span class="badge">${s.duration}s</span></div><p>${esc(s.description)}</p><audio controls preload="metadata" src="${s.url}"></audio><p class="muted">${esc(s.voice_name||'Adam')} · ${s.post_tempo}× final pace · style ${s.voice_settings.style}</p><button data-select="${s.id}" ${data.selected===s.id?'disabled':''}>${data.selected===s.id?'✓ Selected':'Use this voice style'}</button></article>`).join('');document.querySelectorAll('audio').forEach(a=>a.addEventListener('play',()=>document.querySelectorAll('audio').forEach(other=>{if(other!==a)other.pause()})))}catch(e){$('#status').textContent=e.message}}
-document.addEventListener('click',async e=>{const b=e.target.closest('[data-select]');if(!b)return;b.disabled=true;try{const r=await fetch('/api/voices/select',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({id:b.dataset.select})});if(!r.ok)throw Error('Could not save the preset');$('#status').textContent='Saved — future video sessions will use your selected preset.';await load()}catch(e){$('#status').textContent=e.message;b.disabled=false}});load();
+let csrf = '';
+const $ = (s) => document.querySelector(s);
+const esc = (s) =>
+  String(s).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[c]),
+  );
+
+async function load() {
+  try {
+    const auth = await fetch('/api/state');
+    if (auth.status === 401) {
+      $('#status').innerHTML =
+        'Please <a href="/">sign in to the dashboard</a>, then return to this page.';
+      return;
+    }
+    if (!auth.ok) throw Error('Could not connect to the dashboard');
+    csrf = (await auth.json()).csrf;
+    const r = await fetch('/api/voices');
+    if (!r.ok) throw Error('Samples are not available yet');
+    const data = await r.json();
+    $('#passage').textContent = data.text;
+    $('#voices').innerHTML = data.samples
+      .map(
+        (s, i) => `<article class="panel">
+<div class="section-head">
+  <h2>${i + 1}. ${esc(s.name)}</h2>
+  <span class="badge">${s.duration}s</span>
+</div>
+<p>${esc(s.description)}</p>
+<audio controls preload="metadata" src="${s.url}"></audio>
+<div class="voice-card-meta">
+  <div><strong>Voice:</strong> ${esc(s.voice_name || 'Alex')} (<code class="voice-code">${esc(s.voice_id)}</code>)</div>
+  <div><strong>Model:</strong> ${esc(s.model_id || 'eleven_v3')} · <strong>Pace:</strong> ${s.post_tempo}× · <strong>Style:</strong> ${s.voice_settings ? s.voice_settings.style : ''}</div>
+  ${s.voice_url ? `<div style="margin-top:6px;"><a class="voice-ext-link" href="${esc(s.voice_url)}" target="_blank" rel="noopener">Open Voice on ElevenLabs ↗</a></div>` : ''}
+</div>
+<button data-select="${s.id}" ${data.selected === s.id ? 'disabled' : ''}>${data.selected === s.id ? '✓ Selected' : 'Use this voice style'}</button>
+</article>`,
+      )
+      .join('');
+
+    document.querySelectorAll('audio').forEach((a) =>
+      a.addEventListener('play', () =>
+        document.querySelectorAll('audio').forEach((other) => {
+          if (other !== a) other.pause();
+        }),
+      ),
+    );
+  } catch (e) {
+    $('#status').textContent = e.message;
+  }
+}
+
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-select]');
+  if (!b) return;
+  b.disabled = true;
+  try {
+    const r = await fetch('/api/voices/select', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf,
+      },
+      body: JSON.stringify({ id: b.dataset.select }),
+    });
+    if (!r.ok) throw Error('Could not save the preset');
+    $('#status').textContent =
+      'Saved — future video sessions will use your selected preset.';
+    await load();
+  } catch (e) {
+    $('#status').textContent = e.message;
+    b.disabled = false;
+  }
+});
+
+load();

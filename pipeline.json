@@ -27,5 +27,7 @@
     "assets/characters/richard/char_point_left.png",
     "assets/characters/richard/char_point_right.png"
   ],
-  "variant": "high"
+  "variant": "high",
+  "auto_admit": false,
+  "upload_thumbnails": false
 }

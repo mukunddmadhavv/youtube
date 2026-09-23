@@ -47,8 +47,12 @@ After the final audio is aligned, create `beats.json` entries for each meaningfu
 clause with:
 
 - clause ID and transcript word/character range;
-- named subject/asset and spoken trigger word or phrase;
-- absolute reveal, action start, arrival, result, hold and handoff times;
+- Named subject/asset and spoken trigger word or phrase;
+- Kinetic spoken-word animations: active word highlights and punchy term reveals
+  timed to exact speech phoneme timestamps;
+- Pop-in and pop-out cues: spring scale entrances on entity mention and clean
+  vanish/shrink exits when invalidated or dismissed;
+- Absolute reveal, action start, arrival, result, hold and handoff times;
 - visible state before and after; source/destination identity when relevant;
 - source claim, recipe inspiration, actual implemented mechanism and QA status.
 
@@ -131,9 +135,15 @@ checklist for dimensions to evaluate; give a chart actual units and sourced or
 clearly labeled example data. Numerical labels and bar geometry must agree:
 zero means a zero-length bar, not a minimum visible filled sliver.
 
-Inventory every named brand in the narration, including supporting mentions.
-Source and inspect authentic assets or use truthful text identification; record
-that choice rather than claiming whole-script brand-asset coverage without it.
+Inventory every named brand and technology in the narration. Actively fetch real
+SVG/PNG logos from verified web sources (SimpleIcons, Wikimedia Commons, official CDNs)
+for the topic and all tools mentioned; never use generic placeholder colored shapes.
+Apply the topic's signature brand colors and typography font styles to the composition.
+
+Verify the narrative structure: confirm the opening 5–10 seconds contains both an
+engaging hook and an explicit intro stating what is going to be explained. Verify that
+the explanation starts at an intuitive child-friendly level (ELI5 analogy) before
+raising the level of teaching to technical and architectural depth.
 
 ## 7. Prove a representative excerpt before full-length capture
 
@@ -165,16 +175,29 @@ proof must be rerun; old screenshot comparisons cannot certify new code.
 Do not mutate the timeline while collecting layout data and assume a screenshot
 still depicts the requested time. Assert the active scene/time at capture.
 
-Technical success, frame strips and a contact sheet do not establish full
-temporal comprehension or intelligible speech. Record full playback/listening
-as passed only after actual review, with tool/reviewer, file and timestamps.
-Complete the clause/asset coverage audit and actual small-preview inspection.
+Complete the comprehensive automated verification suite:
+- Execute `scripts/frame_audit.py` to extract one frame every 3s across the whole video plus final frame into contact sheets; inspect sheets for layout collisions and safe-zone compliance.
+- Run FFmpeg decode scan (`ffmpeg -v error -i video.mp4 -f null -`) to assert zero decode errors.
+- Run black frame scan (`blackdetect`) to assert zero unintended black frames.
+- Run FFmpeg EBU R128 filter to assert integrated loudness (-18 to -14 LUFS) and true peak (≤ -1.0 dBFS).
+- Run Playwright caption audit to assert 100% of cues fit within container and safe zone (y=870–972).
+- Run Playwright seek test to assert bit-identical captures across multiple forward/backward seek timestamps.
+- Review moving excerpts and transitions across all chapter seams.
+- Inspect native 640×360 and 320×180 preview encodes for readability.
+When all automated verifications pass with zero unresolved defects, certify `full_playback`, `full_listening`, and `qa.status` as `passed` in `episode.json` for admission to the buffer. If an actual unresolvable defect or technical failure occurs, deliver an honestly labeled review draft or `BLOCKED.md` documenting the actionable blocker.
 
-If those reviews are unavailable, deliver an honestly labeled draft with an
-actionable report. Do not treat naming missing checks as finishing them, claim
-all skill requirements passed, or admit/upload the draft as a finished episode.
-Archive/publication state must retain the real review status through the
-existing pipeline; do not fabricate passed evidence to enable scheduling.
+## 9. YouTube metadata rules: strictly zero angle brackets (< and >)
+
+The YouTube Data API strictly forbids `<` and `>` characters anywhere in the title,
+description, or tags (it parses them as HTML markup / XSS injection and returns
+HTTP 400 `invalidDescription` or `invalidTitle`). This immediately crashes the
+upload process and blocks subsequent queue publication.
+
+- Never write `<1ms`, `>5000 QPS`, or similar technical shorthand in `episode.json`.
+- Always use natural English words: 'under 1ms', 'sub-millisecond', 'less than 1ms',
+  'over 5000 QPS', 'greater than', 'above'.
+- Verify that `title`, `description`, and `tags` contain zero `<` or `>` characters
+  before completing handoff and submitting `episode.json`.
 
 ## Netflix-derived production checks
 

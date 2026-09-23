@@ -1,7 +1,7 @@
 {
   "extracted_on": "2026-09-21",
-  "skill_root": "/Users/mukundmadhav/pitch/.pi/skills/launch-video",
-  "effects_root": "/Users/mukundmadhav/pitch/effects",
+  "skill_root": "/home/mukund/launchVdo/.opencode/skills/launch-video",
+  "effects_root": "/home/mukund/launchVdo/effects",
   "catalog_size_at_inspection": {"effects": 443, "families": 32},
   "inspection_method": "direct local source reads; pitch executable unavailable on PATH",
   "runtime_status": "reference extraction only; no Richard ports or export verification yet",

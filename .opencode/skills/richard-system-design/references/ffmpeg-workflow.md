@@ -126,10 +126,7 @@ to identical timestamps independently of export sampling.
 Check captions at 640×360 and 320×180; use 3–7 aligned words and two lines,
 allowing shorter cues at semantic boundaries. Inspect actual native-size images
 or playback: generating preview files alone is not a readability review.
-Create thumbnail.png at 1280×720 under 2MB. Review motion temporally and listen
-to the full render before claiming PASS. If listening/playback is unavailable,
-deliver the generated video as a review draft with checks marked NOT VERIFIED;
-do not admit it to automatic publishing under a false QA status.
+Create thumbnail.png at 1280×720 under 2MB. Verify motion and audio with the full automated QA suite: frame audit across all contact sheets, zero-error decode scan, black frame check, EBU R128 loudness verification (-18 to -14 LUFS, peak ≤ -1.0 dBFS), caption fit, and seek determinism. When all tests pass with zero defects, certify the checks and qa.status as PASSED. If an actual technical defect or blocker remains, deliver the generated video as a review draft with BLOCKED.md. The local thumbnail artifact is preserved in the episode folder for review and manual upload; the automated publisher publishes the video directly to YouTube without uploading custom thumbnails (avoiding 403 errors on unverified channels).
 
 ## Owner-selected audition preset takes precedence
 

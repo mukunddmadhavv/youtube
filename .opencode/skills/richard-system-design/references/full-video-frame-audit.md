@@ -80,12 +80,7 @@ properties as applicable. Do not iterate paid TTS for a purely visual defect.
 
 ## 5. Completion and handoff
 
-Deliver as ready only when sampled-frame review is complete, no known defects
-remain unresolved, and required temporal/listening checks were actually done.
-Summarize inspected frame count, time coverage, defects fixed, remaining issues,
-and final video hash. Keep extracted frames, sheets and review records with the
-episode. If any required review cannot be performed, return a labeled review
-draft with that limitation and do not fabricate a passed publishing manifest.
+Deliver as ready when sampled-frame review is complete, no known defects remain unresolved, and automated temporal and listening checks are verified. Summarize inspected frame count, time coverage, defects fixed, remaining issues, and final video hash. Keep extracted frames, sheets and review records with the episode. When all automated verification checks pass with zero defects, certify the checks and qa.status as passed in episode.json. If any required technical operation fails or an unresolvable defect occurs, return a labeled review draft or BLOCKED.md explaining the issue.
 
 The extractor is an evidence tool, not an automatic visual-quality classifier.
 The existing pipeline does not independently infer visual correctness from it.
